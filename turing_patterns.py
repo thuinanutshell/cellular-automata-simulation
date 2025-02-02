@@ -4,7 +4,7 @@ from matplotlib.animation import FuncAnimation
 from IPython.display import HTML
 from tqdm import tqdm
 
-class TuringPatterns:
+class TuringPatternsv1:
   def __init__(self, 
                size: int, 
                density: float,
@@ -70,6 +70,81 @@ class TuringPatterns:
     
     self.current_state, self.next_state = self.next_state, self.current_state
     self.step_counter += 1
+
+class TuringPatternsv2:
+  def __init__(self, 
+               size: int, 
+               density: float,
+               short_radius: int,
+               long_radius: int,
+               short_weight: float,
+               long_weight: float):
+    self.size = size # the number of cells in one row 
+    self.density = density # proportion of cells to activate
+    self.current_state = np.zeros((size, size)) # a squared matrix
+
+    self.total_in = np.zeros((size, size))
+    self.total_out = np.zeros((size, size))
+
+    self.Ra = short_radius # radius of the short-activation R_a
+    self.Ri = long_radius # radius of the long-inhibation R_i
+
+    self.wa = short_weight # weights of short activation
+    self.wi = long_weight # weights of long inhibation
+
+    self.step_counter = 0
+
+  def initialize(self):
+    # moore neighborhood
+    num_cells = self.size ** 2
+    # randomly choose which index to be active
+    random_indices = np.random.choice(a=range(num_cells),
+                                      size=int(round(self.density*num_cells, 1) + 1),
+                                      replace=False) 
+    
+    self.current_state.flat[random_indices] = 1 # assigned the values of the indices to 1
+    self.figure, self.axes = plt.subplots()
+  
+  def draw(self):
+    '''
+    Draw the current state of the cellular automaton.
+    '''
+    plot = self.axes.imshow(
+        self.current_state, vmin=0, vmax=1, cmap='gray')
+    self.axes.set_title(f'State at step {self.step_counter}')
+    return plot
+
+  def update(self):
+    for col1 in range(-self.Ra, self.Ra+1):
+      shifted_state = np.roll(a=self.current_state,
+                              shift=col1,
+                              axis=1)
+      for row1 in range(-self.Ra, self.Ra+1):
+        self.total_in += np.roll(a=shifted_state,
+                              shift=row1,
+                              axis=0)
+    
+    for col2 in range(-self.Ri, self.Ri+1):
+      shifted_state = np.roll(a=self.current_state,
+                              shift=col2,
+                              axis=1)
+      for row2 in range(-self.Ri, self.Ri+1):
+        self.total_out += np.roll(a=shifted_state,
+                                 shift=row2,
+                                 axis=0)
+    
+    diff_matrix = self.wa*self.total_in - self.wi*self.total_out
+    # Iterate through rows and columns using nested loops
+    for i in range(diff_matrix.shape[0]):  # Iterate through rows
+      for j in range(diff_matrix.shape[1]):  # Iterate through columns
+        if diff_matrix[i, j] > 0:
+          diff_matrix[i, j] = 1
+        else:
+          diff_matrix[i, j] = 0
+        
+    self.step_counter += 1
+    self.current_state = diff_matrix # Update current state
+    return diff_matrix # Return the updated matrix
     
 def update(frame_number, steps_per_frame, progress_bar):
   for _ in range(steps_per_frame):
